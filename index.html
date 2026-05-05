@@ -817,7 +817,9 @@ async function loadFromBin() {
       headers: { 'X-Master-Key': JSONBIN_API_KEY }
     });
     const data = await res.json();
-    if (data.record) { checked = data.record; }
+    if (data.record) { checked = data.record; 
+    localStorage.setItem('skoolie_cache', JSON.stringify(checked)); 
+                     }
   } catch(e) { console.warn('Could not load from JSONBin', e); }
 }
 
@@ -984,7 +986,17 @@ function renderAll() {
 
 // start in readonly mode, load from bin
 document.getElementById('categories').classList.add('readonly');
-loadFromBin().then(() => renderAll());
+
+// Load from localStorage immediately for instant render
+const cached = localStorage.getItem('skoolie_cache');
+if (cached) { checked = JSON.parse(cached); }
+renderAll();
+
+// Then fetch from JSONBin in background and update if different
+loadFromBin().then(() => {
+  localStorage.setItem('skoolie_cache', JSON.stringify(checked));
+  renderAll();
+});
 </script>
 
 </body>
