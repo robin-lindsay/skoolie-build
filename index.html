@@ -399,7 +399,8 @@ const COLORS = {
 const DATA = [
   { cat: 'Interior Demo', tasks: [
 { name: 'Seat removal', subs: [
-      { t: 'Unbolt seats from floor (angle grinder for inaccessible bolts)' },
+      { t: 'Unbolt seats from floor' },
+      {t: 'Angle grind inacessible bolts'},
       { t: 'Remove all seats from bus' },
       { t: 'Dispose of seats at dump'},
     ]},
@@ -407,7 +408,7 @@ const DATA = [
       { t: 'Disconnect ceiling lights wiring' },
       { t: 'Disconnect speakers from ceiling'},
       { t: 'Remove screws holding wall and ceiling panels'},
-      { t: 'Grind down remaining rivets in rear with angle grinder' },
+      { t: 'Grind down remaining rivets with angle grinder' },
       { t: 'Remove all wall and ceiling panels' },
       { t: 'Bring panels to scrap metal yard'},
     ]},
@@ -415,34 +416,35 @@ const DATA = [
       { t: 'Pull out all old wall and ceiling insulation' },
       { t: 'Bag and dispose of dirty insulation' },
     ]},
-    { name: 'Floor removal', subs: [
-      { t: 'Score rubber flooring at plywood seams with multitool' },
-      { t: 'Pry up floor sections with crowbar'},
-      { t: 'Use floor jack to pop stubborn sections'},
-      { t: 'Cut boards into smaller pieces for disposal'},
-      { t: 'Dispose of old floor material'},
-    ]},
-    { name: 'Wheelchair lift removal', subs: [
+        { name: 'Wheelchair lift removal', subs: [
       { t: 'Disconnect wheelchair lift from battery' },
       { t: 'Remove wheelchair lift from bus'},
       { t: 'Sell wheelchair lift on Craigslist'},
     ]},
+        { name: 'Alarm & buzzer disconnect', subs: [
+      { t: 'Disconnect buzzer alarms for back doors'},
+      { t: 'Disconnect emergency hatch alarm'},  
+   ]},  
     { name: 'Wheelchair track removal',  subs: [
       { t: 'Unbolt wheelchair floor tracks where accessible'},
       { t: 'Cut remaining bolts with multitool' },
       { t: 'Remove all track sections from floor' },
     ]},
-    { name: 'Rear heater delete', subs: [
+        { name: 'Rear heater delete', subs: [
       { t: 'Remove rear heater unit'},
       { t: 'Loop coolant lines to bypass heater' },
       { t: 'Check for coolant leaks after looping'},
       { t: 'Unbolt rear heater, disconnect wires, and remove'},
       { t: 'Dispose of drained coolant'},
     ]},
-    { name: 'Alarm & buzzer disconnect', subs: [
-      { t: 'Disconnect buzzer alarms for back doors'},
-      { t: 'Disconnect emergency hatch alarm'},  
-   ]},  
+    { name: 'Floor removal', subs: [
+      { t: 'Score rubber flooring at plywood seams with multitool' },
+      { t: 'Pry up floor sections with crowbar'},
+      { t: 'Use floor jack to pop out floor plywood'},
+      { t: 'Cut boards into smaller pieces for disposal'},
+      { t: 'Dispose of old floor material'},
+    ]},
+
       { name: 'Cut off aluminum lower walls', subs: [
       { t: 'Remove all screws/rivets securing aluminum panels' },
       { t: 'Score along seams with oscillating tool or grinder' },
