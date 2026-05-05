@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Skoolie Build Tracker</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f7f5f0;
+    --surface: #ffffff;
+    --surface2: #f0ede6;
+    --border: #e0dbd0;
+    --border2: #ccc8bc;
+    --text: #1a1916;
+    --text2: #6b6760;
+    --text3: #a09d96;
+    --accent: #c8501a;
+    --accent-light: #fdf0eb;
+    --green: #2d7d4f;
+    --green-light: #e8f5ee;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --radius: 8px;
+    --radius-lg: 12px;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  header {
+    background: var(--text);
+    color: #fff;
+    padding: 1.5rem 2rem 1.25rem;
+    display: flex;
+    align-items: flex-end;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  .header-left h1 {
+    font-family: var(--mono);
+    font-size: 1.35rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: #fff;
+  }
+
+  .header-left .subtitle {
+    font-size: 12px;
+    color: #a09d96;
+    margin-top: 3px;
+    font-family: var(--mono);
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 1.5rem;
+    margin-left: auto;
+    align-items: flex-end;
+  }
+
+  .hstat { text-align: right; }
+  .hstat-num { font-family: var(--mono); font-size: 1.5rem; font-weight: 500; color: #fff; line-height: 1; }
+  .hstat-label { font-size: 11px; color: #a09d96; margin-top: 2px; }
+
+  .overall-bar {
+    height: 3px;
+    background: #333;
+    width: 100%;
+  }
+  .overall-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.4s ease;
+  }
+
+  .toolbar {
+    padding: 1rem 2rem;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+
+  .search-wrap { position: relative; flex: 1; min-width: 180px; }
+  .search-wrap input {
+    width: 100%;
+    padding: 7px 10px 7px 32px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    font-size: 13px;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  .search-wrap input:focus { border-color: var(--accent); }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); font-size: 14px; pointer-events: none; }
+
+  .filter-btn {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 5px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all 0.12s;
+    white-space: nowrap;
+  }
+  .filter-btn:hover { background: var(--surface2); color: var(--text); }
+  .filter-btn.active { background: var(--text); color: #fff; border-color: var(--text); }
+
+  .toolbar-right { display: flex; gap: 8px; margin-left: auto; align-items: center; }
+
+  .lock-btn {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border2);
+    background: transparent;
+    cursor: pointer;
+    color: var(--text2);
+    transition: all 0.12s;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .lock-btn:hover { background: var(--surface2); }
+  .lock-btn.unlocked { color: var(--green); border-color: var(--green); background: var(--green-light); }
+
+  .save-btn {
+    font-size: 11px;
+    font-family: var(--mono);
+    padding: 5px 12px;
+    border-radius: var(--radius);
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.12s;
+    display: none;
+    align-items: center;
+    gap: 5px;
+  }
+  .save-btn:hover { background: #a83e12; }
+  .save-btn.visible { display: flex; }
+  .save-btn.saving { background: #888; cursor: default; }
+  .save-btn.saved { background: var(--green); }
+
+  .readonly .chk { cursor: default; opacity: 0.5; pointer-events: none; }
+  .readonly .pchk { cursor: default; opacity: 0.5; pointer-events: none; }
+
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    width: 320px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  }
+  .modal h2 { font-size: 15px; font-family: var(--mono); margin-bottom: 0.75rem; }
+  .modal p { font-size: 12px; color: var(--text2); margin-bottom: 1rem; }
+  .modal input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-family: var(--mono);
+    margin-bottom: 0.75rem;
+    outline: none;
+    background: var(--bg);
+    color: var(--text);
+  }
+  .modal input:focus { border-color: var(--accent); }
+  .modal-error { font-size: 12px; color: var(--accent); margin-bottom: 0.5rem; display: none; }
+  .modal-error.show { display: block; }
+  .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+  .modal-btns button {
+    font-size: 12px; font-family: var(--mono);
+    padding: 6px 14px; border-radius: var(--radius);
+    cursor: pointer; border: 1px solid var(--border2);
+    background: transparent; color: var(--text2);
+  }
+  .modal-btns .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .modal-btns .btn-primary:hover { background: #a83e12; }
+
+  .readonly-badge {
+    font-size: 11px;
+    font-family: var(--mono);
+    color: var(--text3);
+    padding: 3px 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  .main { padding: 1.5rem 2rem; max-width: 860px; margin: 0 auto; }
+
+
+
+  .category { margin-bottom: 12px; border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; background: var(--surface); }
+
+  .cat-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.1s;
+  }
+  .cat-header:hover { background: var(--surface2); }
+
+  .cat-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+  .cat-title { font-weight: 600; font-size: 14px; flex: 1; }
+  .cat-meta { display: flex; align-items: center; gap: 10px; }
+  .cat-count { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+  .cat-bar { width: 64px; height: 4px; background: var(--border); border-radius: 2px; overflow: hidden; }
+  .cat-bar-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+  .cat-pct { font-family: var(--mono); font-size: 11px; color: var(--text3); width: 28px; text-align: right; }
+  .chevron { font-size: 9px; color: var(--text3); transition: transform 0.2s; flex-shrink: 0; }
+  .chevron.open { transform: rotate(90deg); }
+
+  .tasks { display: none; border-top: 1px solid var(--border); }
+  .tasks.open { display: block; }
+
+  .parent-task { border-bottom: 1px solid var(--border); }
+  .parent-task:last-child { border-bottom: none; }
+
+  .parent-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 14px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .parent-row:hover { background: var(--surface2); }
+
+  .parent-label { flex: 1; font-size: 13px; font-weight: 500; line-height: 1.4; }
+  .parent-sub-count { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 1px; font-weight: 400; }
+  .expand-icon { font-size: 9px; color: var(--text3); margin-top: 3px; flex-shrink: 0; transition: transform 0.2s; }
+  .expand-icon.open { transform: rotate(90deg); }
+
+  .subtasks { display: none; background: var(--surface2); border-top: 1px solid var(--border); }
+  .subtasks.open { display: block; }
+
+  .subtask-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 6px 14px 6px 34px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .subtask-row:last-child { border-bottom: none; }
+  .subtask-row:hover { background: #e8e5de; }
+
+  .subtask-label { flex: 1; font-size: 12.5px; line-height: 1.45; color: var(--text); }
+  .subtask-note { font-size: 11px; color: var(--text3); margin-top: 2px; }
+
+  .chk {
+    width: 15px; height: 15px;
+    border-radius: 3px;
+    border: 1.5px solid var(--border2);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+    background: var(--surface);
+  }
+  .chk:hover { border-color: var(--green); }
+  .chk.checked { border-color: var(--green); background: var(--green); }
+  .chk.checked::after { content: ''; display: block; width: 3px; height: 6px; border: 1.5px solid white; border-top: none; border-left: none; transform: rotate(45deg) translateY(-1px); }
+
+  .pchk {
+    width: 17px; height: 17px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border2);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-top: 1px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+    background: var(--surface);
+  }
+  .pchk:hover { border-color: var(--green); }
+  .pchk.checked { border-color: var(--green); background: var(--green); }
+  .pchk.checked::after { content: ''; display: block; width: 4px; height: 7px; border: 1.5px solid white; border-top: none; border-left: none; transform: rotate(45deg) translateY(-1px); }
+  .pchk.partial { border-color: var(--green); }
+  .pchk.partial::after { content: ''; display: block; width: 7px; height: 1.5px; background: var(--green); }
+
+  .done-label { text-decoration: line-through; opacity: 0.45; }
+
+  .empty { padding: 2rem; text-align: center; color: var(--text3); font-size: 13px; font-family: var(--mono); }
+
+  @media (max-width: 600px) {
+    header { padding: 1rem; }
+    .toolbar { padding: 0.75rem 1rem; }
+    .main { padding: 1rem; }
+    .hstat-num { font-size: 1.2rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>skoolie build tracker</h1>
+    <div class="subtitle" id="subtitle">loading...</div>
+  </div>
+  <div class="header-stats">
+    <div class="hstat"><div class="hstat-num" id="hstat-pct">0%</div><div class="hstat-label">complete</div></div>
+    <div class="hstat"><div class="hstat-num" id="hstat-done">0</div><div class="hstat-label">done</div></div>
+    <div class="hstat"><div class="hstat-num" id="hstat-left">0</div><div class="hstat-label">remaining</div></div>
+  </div>
+</header>
+<div class="overall-bar"><div class="overall-bar-fill" id="overall-fill" style="width:0%"></div></div>
+
+<div class="toolbar">
+  <div class="search-wrap">
+    <span class="search-icon">&#9906;</span>
+    <input type="text" id="search" placeholder="Search tasks..." oninput="renderAll()" />
+  </div>
+  <div id="filters"></div>
+  <div class="toolbar-right">
+    <span class="readonly-badge" id="readonly-badge">&#128065; view only</span>
+    <button class="lock-btn" id="lock-btn" onclick="handleLock()">&#128274; <span id="lock-label">edit</span></button>
+    <button class="save-btn" id="save-btn" onclick="handleSave()">&#8593; <span id="save-label">save progress</span></button>
+  </div>
+</div>
+
+<!-- Password modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="modal">
+    <h2>&#128274; enter password</h2>
+    <p>Enter your password to unlock editing. Visitors can view but not change your progress.</p>
+    <input type="password" id="pw-input" placeholder="password" onkeydown="if(event.key==='Enter')submitPw()" />
+    <div class="modal-error" id="pw-error">incorrect password &#8212; try again</div>
+    <div class="modal-btns">
+      <button onclick="closeModal()">cancel</button>
+      <button class="btn-primary" onclick="submitPw()">unlock</button>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+  <div id="categories"></div>
+</div>
+
+<script>
+// ---- CONFIGURATION ----
+// 1. Go to jsonbin.io, create a free account
+// 2. Create a new Bin with content: {}
+// 3. Paste your Bin ID and API key below
+// 4. Choose a password — only you will know it
+const JSONBIN_BIN_ID = '69f92825aaba8821976fe116';
+const JSONBIN_API_KEY = '$2a$10$I568.fGBvz2p5mfOaagyn.1wOyniCeAWnpJyy1HYPGNr/X1Ti7sL6';
+const EDITOR_PASSWORD = 'Maverick';
+// -----------------------
+
+const COLORS = {
+  'Interior Demo': '#c8501a',
+  'Exterior Demo': '#7c5cbf',
+  'Flooring': '#2d7d4f',
+  'Insulation': '#2563a8',
+  'Electrical': '#b07d12',
+  'Solar': '#4a8c1c',
+  'Plumbing': '#b84473',
+  'HVAC': '#5f7a8a',
+  'Windows & Skylights': '#1a6b5a',
+  'Framing & Structure': '#7a5230',
+  'Furniture & Build-out': '#1a5a8a',
+};
+
+const DATA = [
+  { cat: 'Interior Demo', tasks: [
+{ name: 'Seat removal', subs: [
+      { t: 'Unbolt seats from floor (angle grinder for inaccessible bolts)' },
+      { t: 'Remove all seats from bus' },
+      { t: 'Dispose of seats at dump'},
+    ]},
+    { name: 'Wall & ceiling panel removal',  subs: [
+      { t: 'Disconnect ceiling lights wiring' },
+      { t: 'Disconnect speakers from ceiling'},
+      { t: 'Remove screws holding wall and ceiling panels'},
+      { t: 'Grind down remaining rivets in rear with angle grinder' },
+      { t: 'Remove all wall and ceiling panels' },
+      { t: 'Bring panels to scrap metal yard'},
+    ]},
+    { name: 'Insulation removal', subs: [
+      { t: 'Pull out all old wall and ceiling insulation' },
+      { t: 'Bag and dispose of dirty insulation' },
+    ]},
+    { name: 'Floor removal', subs: [
+      { t: 'Score rubber flooring at plywood seams with multitool' },
+      { t: 'Pry up floor sections with crowbar'},
+      { t: 'Use floor jack to pop stubborn sections'},
+      { t: 'Cut boards into smaller pieces for disposal'},
+      { t: 'Dispose of old floor material'},
+    ]},
+    { name: 'Wheelchair lift removal', subs: [
+      { t: 'Disconnect wheelchair lift from battery' },
+      { t: 'Remove wheelchair lift from bus'},
+      { t: 'Sell wheelchair lift on Craigslist'},
+    ]},
+    { name: 'Wheelchair track removal',  subs: [
+      { t: 'Unbolt wheelchair floor tracks where accessible'},
+      { t: 'Cut remaining bolts with multitool' },
+      { t: 'Remove all track sections from floor' },
+    ]},
+    { name: 'Rear heater delete', subs: [
+      { t: 'Remove rear heater unit'},
+      { t: 'Loop coolant lines to bypass heater' },
+      { t: 'Check for coolant leaks after looping'},
+      { t: 'Unbolt rear heater, disconnect wires, and remove'},
+      { t: 'Dispose of drained coolant'},
+    ]},
+    { name: 'Alarm & buzzer disconnect', subs: [
+      { t: 'Disconnect buzzer alarms for back doors'},
+      { t: 'Disconnect emergency hatch alarm'},  
+   ]},  
+      { name: 'Cut off aluminum lower walls', subs: [
+      { t: 'Remove all screws/rivets securing aluminum panels' },
+      { t: 'Score along seams with oscillating tool or grinder' },
+      { t: 'Peel off aluminum lower wall panels' },
+      { t: 'Remove any adhesive or backing left on ribs' },
+      { t: 'Dispose of aluminum (sell as scrap)' },
+    ]},
+    { name: 'Strip wheel wells', subs: [
+      { t: 'Heat rubber mat with heat gun to soften adhesive' },
+      { t: 'Scrape rubber mat off wheel wells with putty knife/scraper' },
+      { t: 'Scrape off remaining adhesive residue' },
+      { t: 'Inspect metal underneath for rust' },
+      { t: 'Wire brush any rust on wheel well metal' },
+      { t: 'Treat rust with rust converter', n: 'Rust-Oleum or Ospho' },
+    ]},
+    { name: 'Vacuum and clean interior', subs: [
+      { t: 'Remove all loose debris and garbage' },
+      { t: 'Vacuum entire floor and ribs thoroughly' },
+      { t: 'Wipe down all metal surfaces with degreaser' },
+      { t: 'Sanitize interior with diluted bleach or Lysol spray' },
+      { t: 'Let dry completely before floor treatment' },
+    ]},
+    { name: 'Clean up floor', subs: [
+      { t: 'Cut off all exposed nail/screw heads flush with angle grinder' },
+      { t: 'Wire brush all rusted areas of the floor' },
+      { t: 'Vacuum up wire brush debris' },
+      { t: 'Apply rust converter (Ospho or similar) to all rust spots' },
+      { t: 'Let rust converter dry fully (24 hrs)', n: 'Do not skip drying time' },
+      { t: 'Wash floor with degreaser and rinse' },
+      { t: 'Let floor dry completely' },
+      { t: 'Paint floor with Rustoleum or bed liner paint' },
+      { t: 'Apply second coat after first dries' },
+    ]},
+  ]},
+  { cat: 'Exterior Demo', tasks: [
+    { name: 'Flasher deletes', subs: [
+      { t: 'Remove old amber flasher lenses from exterior' },
+      { t: 'Purchase matching clear LED replacements' },
+      { t: 'Install clear LED flashers in housing' },
+      { t: 'Locate and remove flasher relay from electrical panel' },
+      { t: 'Verify turn signals and hazards still function' },
+    ]},
+    { name: 'Window deletes', subs: [
+      { t: 'Remove window frame trim (interior side)' },
+      { t: 'Carefully pop out existing bus windows' },
+      { t: 'Clean out rubber gasket / sealant from opening' },
+      { t: 'Cut 18g sheet metal to fit each opening' },
+      { t: 'Test fit sheet metal patch' },
+      { t: 'Weld or rivet sheet metal patch in place' },
+      { t: 'Grind welds flush' },
+      { t: 'Seal all edges with seam sealer / butyl tape' },
+      { t: 'Prime and paint exterior to match bus color' },
+      { t: 'Inspect from inside for light leaks or gaps' },
+    ]},
+    { name: 'Emergency exit delete', subs: [
+      { t: 'Remove emergency exit door hardware and hinges' },
+      { t: 'Remove door from opening' },
+      { t: 'Clean and prep opening edges' },
+      { t: 'Cut 18g sheet metal to fit emergency exit opening' },
+      { t: 'Weld or rivet sheet metal in place' },
+      { t: 'Grind welds flush and smooth' },
+      { t: 'Apply seam sealer around all edges inside and out' },
+      { t: 'Prime and paint exterior' },
+    ]},
+    { name: 'Back door locks', subs: [
+      { t: 'Decide: weld shut or install deadbolt/lock mechanism' },
+      { t: 'Install chosen lock hardware on back door' },
+      { t: 'Test lock from both inside and outside' },
+      { t: 'Seal any gaps around back door with weather stripping' },
+    ]},
+    { name: 'Front door locks', subs: [
+      { t: 'Remove existing pneumatic/lever door mechanism' },
+      { t: 'Fuse/weld front door in closed position with 16g steel' },
+      { t: 'Seal gap between door and frame with butyl tape' },
+      { t: 'Install deadbolt or cam lock through door' },
+      { t: 'Seal between weather stripping and door edges' },
+      { t: 'Test lock operation' },
+    ]},
+    { name: 'Door weather stripping', subs: [
+      { t: 'Remove all old weather stripping from every door' },
+      { t: 'Clean channels with brake cleaner / adhesive remover' },
+      { t: 'Measure and cut new weather stripping to length' },
+      { t: 'Install new weather stripping on front door' },
+      { t: 'Install new weather stripping on back door' },
+      { t: 'Install on any remaining emergency/side doors' },
+      { t: 'Check seal — close door on a dollar bill, should have resistance' },
+    ]},
+  ]},
+  { cat: 'Windows & Skylights', tasks: [
+    { name: 'RV window install', subs: [
+      { t: 'Measure and mark cut lines for each window opening', n: '36" window, sink, stove, maverick' },
+      { t: 'Drill pilot holes at corners of each opening' },
+      { t: 'Cut openings with jigsaw or plasma cutter' },
+      { t: 'File/grind edges smooth and deburr' },
+      { t: 'Prime cut edges to prevent rust' },
+      { t: 'Apply butyl tape around each window flange' },
+      { t: 'Set window in opening and secure with screws' },
+      { t: 'Apply self-leveling lap sealant around exterior perimeter' },
+      { t: 'Inspect interior for gaps or light leaks' },
+      { t: 'Apply interior trim ring if included' },
+    ]},
+    { name: 'Marine hatch / skylight install', subs: [
+      { t: 'Choose location on roof (avoid roof ribs)' },
+      { t: 'Mark cut lines on roof' },
+      { t: 'Drill pilot holes and cut opening with jigsaw' },
+      { t: 'Deburr and prime cut edges' },
+      { t: 'Apply butyl tape around hatch flange' },
+      { t: 'Set hatch and secure with screws' },
+      { t: 'Apply Dicor self-leveling lap sealant around perimeter' },
+      { t: 'Test open/close mechanism and screen' },
+      { t: 'Test for water leaks with hose' },
+    ]},
+  ]},
+  { cat: 'Flooring', tasks: [
+    { name: 'Kilmat / sound deadening', subs: [
+      { t: 'Measure floor area to estimate Kilmat needed' },
+      { t: 'Cut Kilmat sheets to fit between floor ribs' },
+      { t: 'Peel and stick Kilmat to floor between ribs', n: 'Aim for 25-50% coverage minimum' },
+      { t: 'Roll firmly with roller to eliminate air bubbles' },
+      { t: 'Apply Kilmat to wheel wells if desired' },
+    ]},
+    { name: 'Floor insulation and subfloor', subs: [
+      { t: 'Measure and cut XPS foam to fit between floor ribs', n: '1/2" XPS foam' },
+      { t: 'Fit foam pieces snugly between all ribs' },
+      { t: 'Fill gaps with spray foam and let cure' },
+      { t: 'Trim excess spray foam flush' },
+      { t: 'Measure and cut subfloor plywood to fit', n: '1/2" or 3/4" plywood' },
+      { t: 'Dry fit all subfloor pieces and mark cuts' },
+      { t: 'Screw down subfloor to floor ribs with self-tapping screws' },
+      { t: 'Fill screw holes and seams with wood filler' },
+      { t: 'Sand subfloor smooth' },
+      { t: 'Install final floor covering (vinyl plank, etc.)' },
+    ]},
+  ]},
+  { cat: 'Insulation', tasks: [
+    { name: 'Wall insulation', subs: [
+      { t: 'Clean and dry all wall ribs and metal surfaces' },
+      { t: 'Spray rib channels with Lizard Skin or thermal coating (optional)' },
+      { t: 'Cut rigid foam board to fit wall cavities between ribs' },
+      { t: 'Press foam into cavities and secure with spray adhesive' },
+      { t: 'Fill gaps around foam with spray foam' },
+      { t: 'Trim excess spray foam flush with ribs' },
+      { t: 'Apply Kilmat on wall panels if desired for sound deadening' },
+    ]},
+    { name: 'Ceiling insulation', subs: [
+      { t: 'Remove any existing ceiling panels or vents' },
+      { t: 'Clean ceiling metal surface' },
+      { t: 'Apply spray foam or cut rigid foam between ceiling ribs' },
+      { t: 'Secure foam with spray adhesive' },
+      { t: 'Fill all gaps with spray foam' },
+      { t: 'Trim flush when cured' },
+      { t: 'Plan ceiling framing layout before closing up' },
+    ]},
+  ]},
+  { cat: 'Electrical', tasks: [
+    { name: 'Plan electrical system', subs: [
+      { t: 'Calculate total power needs (loads × hours per day)' },
+      { t: 'Size battery bank based on needs' },
+      { t: 'Size inverter and charge controller' },
+      { t: 'Draw wiring diagram for entire system' },
+      { t: 'Create parts and materials list' },
+    ]},
+    { name: 'Main wiring run', subs: [
+      { t: 'Run main positive and negative cables from battery location' },
+      { t: 'Install main fuse/breaker near battery' },
+      { t: 'Run shore power inlet wiring' },
+      { t: 'Install 12V distribution bus bar or fuse block' },
+      { t: 'Run branch circuits to each load (lights, outlets, fan, fridge)' },
+      { t: 'Label all wires at both ends' },
+      { t: 'Install switch panel' },
+      { t: 'Test all circuits with multimeter before connecting loads' },
+    ]},
+    { name: 'Lighting', subs: [
+      { t: 'Plan lighting layout and mark locations' },
+      { t: 'Run 12V wire for each light location' },
+      { t: 'Install puck lights or LED strips' },
+      { t: 'Wire to switch or dimmer' },
+      { t: 'Test all lights' },
+    ]},
+    { name: '110V / inverter outlets', subs: [
+      { t: 'Install inverter and connect to battery bank' },
+      { t: 'Run 110V wiring to outlet locations' },
+      { t: 'Install outlet boxes and outlets' },
+      { t: 'Test outlets with multimeter and appliances' },
+    ]},
+  ]},
+  { cat: 'Solar', tasks: [
+    { name: 'Roof rack install', subs: [
+      { t: 'Measure roof and design rack layout' },
+      { t: 'Source or fabricate roof rack / uni-strut rail system' },
+      { t: 'Mark mounting hole locations on roof (on ribs where possible)' },
+      { t: 'Drill mounting holes' },
+      { t: 'Apply butyl tape under mounting feet' },
+      { t: 'Bolt rack down through roof with backing plates inside' },
+      { t: 'Apply Dicor sealant around all roof penetrations' },
+      { t: 'Test for leaks with water hose' },
+    ]},
+    { name: 'Solar panel install', subs: [
+      { t: 'Determine panel layout and shading analysis' },
+      { t: 'Mount panels to roof rack with Z-brackets or tilt mounts' },
+      { t: 'Wire panels in series/parallel per system design' },
+      { t: 'Run solar cable from roof through waterproof cable entry gland' },
+      { t: 'Seal cable entry with Dicor' },
+      { t: 'Connect cables to charge controller' },
+    ]},
+    { name: 'Solar wiring and charge controller', subs: [
+      { t: 'Install MPPT charge controller in accessible location' },
+      { t: 'Connect solar array wires to charge controller input' },
+      { t: 'Connect charge controller output to battery bank' },
+      { t: 'Install battery monitor / shunt' },
+      { t: 'Configure charge controller settings for battery type' },
+      { t: 'Verify system charging with multimeter' },
+      { t: 'Install and secure battery bank (lithium or AGM)' },
+    ]},
+  ]},
+  { cat: 'HVAC', tasks: [
+    { name: 'AC install', subs: [
+      { t: 'Choose AC unit type (mini-split, rooftop RV AC, window)' },
+      { t: 'Plan mounting location and duct routing' },
+      { t: 'Cut roof or wall opening for AC unit' },
+      { t: 'Install mounting bracket or curb' },
+      { t: 'Set unit in place and secure' },
+      { t: 'Run refrigerant lines if mini-split (hire HVAC tech if needed)' },
+      { t: 'Wire AC to dedicated breaker on inverter/shore power circuit' },
+      { t: 'Seal all penetrations with Dicor' },
+      { t: 'Test cooling operation' },
+    ]},
+    { name: 'Ceiling fan install', subs: [
+      { t: 'Choose fan location (avoid roof ribs)' },
+      { t: 'Cut ceiling opening to fan size' },
+      { t: 'Install fan mounting bracket to ceiling framing' },
+      { t: 'Run 12V wire to fan location' },
+      { t: 'Wire fan to switch or speed controller' },
+      { t: 'Attach fan and test all speed settings' },
+    ]},
+  ]},
+  { cat: 'Framing & Structure', tasks: [
+    { name: 'Interior framing', subs: [
+      { t: 'Plan and sketch full interior layout to scale' },
+      { t: 'Mark wall stud locations on floor and ceiling' },
+      { t: 'Cut 1x2 or 2x2 lumber for wall furring strips' },
+      { t: 'Attach horizontal furring strips to bus ribs' },
+      { t: 'Build any partition walls (bathroom wall, storage wall)' },
+      { t: 'Frame ceiling drops for lights or HVAC routing' },
+      { t: 'Verify all framing is plumb and level' },
+      { t: 'Add blocking wherever cabinets or heavy items will mount' },
+    ]},
+  ]},
+  { cat: 'Plumbing', tasks: [
+    { name: 'Fresh water system', subs: [
+      { t: 'Choose tank type and size, plan tank location' },
+      { t: 'Install fresh water tank and secure' },
+      { t: 'Install 12V water pump' },
+      { t: 'Run PEX or flexible tubing from tank to pump to fixtures' },
+      { t: 'Install accumulator tank to reduce pump cycling' },
+      { t: 'Install shutoff valves at tank and each fixture' },
+      { t: 'Install inline water filter' },
+      { t: 'Connect to sink faucet and any other fixtures' },
+      { t: 'Test for leaks under pressure' },
+    ]},
+    { name: 'Grey water / drain system', subs: [
+      { t: 'Choose grey water tank or direct-drain setup' },
+      { t: 'Install grey water tank under bus if using tank' },
+      { t: 'Run drain lines from sink with P-trap' },
+      { t: 'Run drain from shower if applicable' },
+      { t: 'Route grey water outlet through floor or to tank' },
+      { t: 'Test drainage by running water' },
+    ]},
+    { name: 'Propane plumbing', subs: [
+      { t: 'Decide on propane tank location and size' },
+      { t: 'Install propane tank holder / mount externally' },
+      { t: 'Install regulator at tank' },
+      { t: 'Run propane-rated copper or stainless flex line inside' },
+      { t: 'Install shutoff valve accessible from inside' },
+      { t: 'Connect to stove / oven appliance' },
+      { t: 'Leak test ALL connections with soapy water or leak detector' },
+      { t: 'Install propane/CO detector near floor level', n: 'Propane is heavier than air' },
+      { t: 'Ensure adequate ventilation for combustion air' },
+    ]},
+  ]},
+  { cat: 'Furniture & Build-out', tasks: [
+    { name: 'Bed platform', subs: [
+      { t: 'Decide bed size and orientation' },
+      { t: 'Build bed platform frame from 2x4 or plywood' },
+      { t: 'Secure frame to floor and/or wall framing' },
+      { t: 'Add slat support or plywood top surface' },
+      { t: 'Sand and finish wood surface' },
+      { t: 'Build under-bed storage drawers or hatch if desired' },
+      { t: 'Install mattress' },
+    ]},
+    { name: 'Sofa & bench platform', subs: [
+      { t: 'Design sofa/bench dimensions and layout' },
+      { t: 'Build bench frame from 2x4 lumber' },
+      { t: 'Attach frame to floor and wall blocking' },
+      { t: 'Add plywood top and front face' },
+      { t: 'Cut foam cushion to size', n: 'Upholstery foam 3-4" recommended' },
+      { t: 'Sew or wrap cushion covers' },
+      { t: 'Build storage compartment under seat if desired' },
+    ]},
+    { name: 'Kitchen counter framing', subs: [
+      { t: 'Design kitchen layout (sink, stove, counter, storage)' },
+      { t: 'Build base cabinet frames from 3/4" plywood' },
+      { t: 'Secure base cabinets to floor and wall framing' },
+      { t: 'Cut and install countertop (butcher block, tile, etc.)' },
+      { t: 'Cut sink opening in countertop' },
+      { t: 'Install sink and connect plumbing supply and drain' },
+      { t: 'Install stove / range and connect propane line' },
+      { t: 'Install any upper cabinet boxes' },
+      { t: 'Install cabinet doors and hardware' },
+      { t: 'Install backsplash if desired' },
+      { t: 'Seal countertop around sink with silicone' },
+    ]},
+    { name: 'Wall and ceiling paneling', subs: [
+      { t: 'Choose wall material (shiplap, cedar, plywood, panels)' },
+      { t: 'Measure and cut panels to fit wall sections' },
+      { t: 'Install panels from bottom up, working around windows' },
+      { t: 'Secure panels to furring strips with screws or nails' },
+      { t: 'Fill nail holes and sand smooth' },
+      { t: 'Install ceiling panels last' },
+      { t: 'Install trim / corner pieces' },
+      { t: 'Stain, seal, or paint as desired' },
+    ]},
+  ]},
+];
+
+// --- State ---
+let checked = {};
+let activeFilter = 'All';
+let openCats = {};
+let openTasks = {};
+let isUnlocked = false;
+
+function key(cat, ti, si) { return `${cat}__${ti}__${si}`; }
+
+function parentState(cat, ti) {
+  const t = DATA.find(d => d.cat === cat).tasks[ti];
+  const done = t.subs.filter((_, si) => checked[key(cat, ti, si)]).length;
+  if (done === 0) return 'none';
+  if (done === t.subs.length) return 'all';
+  return 'partial';
+}
+
+function getTotals() {
+  let total = 0, done = 0;
+  DATA.forEach(d => d.tasks.forEach((t, ti) => t.subs.forEach((_, si) => {
+    total++; if (checked[key(d.cat, ti, si)]) done++;
+  })));
+  return { total, done };
+}
+
+function getCatProgress(cat) {
+  const d = DATA.find(x => x.cat === cat);
+  let total = 0, done = 0;
+  d.tasks.forEach((t, ti) => t.subs.forEach((_, si) => {
+    total++; if (checked[key(cat, ti, si)]) done++;
+  }));
+  return { total, done };
+}
+
+// --- JSONBin sync ---
+async function loadFromBin() {
+  if (JSONBIN_BIN_ID === 'YOUR_BIN_ID') return;
+  try {
+    const res = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}/latest`, {
+      headers: { 'X-Master-Key': JSONBIN_API_KEY }
+    });
+    const data = await res.json();
+    if (data.record) { checked = data.record; }
+  } catch(e) { console.warn('Could not load from JSONBin', e); }
+}
+
+async function handleSave() {
+  if (JSONBIN_BIN_ID === 'YOUR_BIN_ID') {
+    alert('JSONBin not configured yet — see instructions in the HTML file.');
+    return;
+  }
+  const btn = document.getElementById('save-btn');
+  const lbl = document.getElementById('save-label');
+  btn.classList.add('saving'); lbl.textContent = 'saving...';
+  try {
+    await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_BIN_ID}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': JSONBIN_API_KEY },
+      body: JSON.stringify(checked)
+    });
+    btn.classList.remove('saving'); btn.classList.add('saved'); lbl.textContent = 'saved ✓';
+    setTimeout(() => { btn.classList.remove('saved'); lbl.textContent = 'save progress'; }, 2500);
+  } catch(e) {
+    btn.classList.remove('saving'); lbl.textContent = 'error — try again';
+    setTimeout(() => { lbl.textContent = 'save progress'; }, 2500);
+  }
+}
+
+// --- Password / lock ---
+function handleLock() {
+  if (isUnlocked) {
+    // lock again
+    isUnlocked = false;
+    document.getElementById('lock-btn').classList.remove('unlocked');
+    document.getElementById('lock-label').textContent = 'edit';
+    document.getElementById('save-btn').classList.remove('visible');
+    document.getElementById('readonly-badge').style.display = '';
+    document.getElementById('categories').classList.add('readonly');
+  } else {
+    document.getElementById('modal-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('pw-input').focus(), 50);
+  }
+}
+
+function submitPw() {
+  const val = document.getElementById('pw-input').value;
+  if (val === EDITOR_PASSWORD) {
+    isUnlocked = true;
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-error').classList.remove('show');
+    document.getElementById('lock-btn').classList.add('unlocked');
+    document.getElementById('lock-label').textContent = 'lock';
+    document.getElementById('save-btn').classList.add('visible');
+    document.getElementById('readonly-badge').style.display = 'none';
+    document.getElementById('categories').classList.remove('readonly');
+  } else {
+    document.getElementById('pw-error').classList.add('show');
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
+}
+
+function closeModal(e) {
+  if (!e || e.target === document.getElementById('modal-overlay')) {
+    document.getElementById('modal-overlay').classList.remove('open');
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-error').classList.remove('show');
+  }
+}
+
+function onCheck(cat, ti, si) {
+  if (!isUnlocked) return;
+  checked[key(cat, ti, si)] = !checked[key(cat, ti, si)];
+  renderAll();
+}
+
+function onParentCheck(cat, ti) {
+  if (!isUnlocked) return;
+  const t = DATA.find(d => d.cat === cat).tasks[ti];
+  const state = parentState(cat, ti);
+  t.subs.forEach((_, si) => { checked[key(cat, ti, si)] = state !== 'all'; });
+}
+
+function toggleCat(cat) { openCats[cat] = !openCats[cat]; renderAll(); }
+function toggleTask(cat, ti) { const k = `${cat}__${ti}`; openTasks[k] = !openTasks[k]; renderAll(); }
+
+// --- Render ---
+function renderAll() {
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  const { total, done } = getTotals();
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('hstat-pct').textContent = pct + '%';
+  document.getElementById('hstat-done').textContent = done;
+  document.getElementById('hstat-left').textContent = total - done;
+  document.getElementById('overall-fill').style.width = pct + '%';
+  document.getElementById('subtitle').textContent = `${total} tasks across ${DATA.length} categories`;
+
+  // filters
+  const cats = ['All', ...DATA.map(d => d.cat)];
+  document.getElementById('filters').innerHTML = cats.map(c =>
+    `<button class="filter-btn${activeFilter===c?' active':''}" onclick="activeFilter='${c}';renderAll()">${c}</button>`
+  ).join('');
+
+  // categories
+  const filtered = activeFilter === 'All' ? DATA : DATA.filter(d => d.cat === activeFilter);
+  let html = '';
+  filtered.forEach(d => {
+    const { total: ct, done: cd } = getCatProgress(d.cat);
+    const cpct = ct ? Math.round(cd / ct * 100) : 0;
+    const color = COLORS[d.cat] || '#888';
+    const isOpen = openCats[d.cat] !== undefined ? openCats[d.cat] : !q;
+    let tasksHtml = '';
+    let catVisible = !q;
+
+    d.tasks.forEach((t, ti) => {
+      const ps = parentState(d.cat, ti);
+      const tk = `${d.cat}__${ti}`;
+      const isTaskOpen = openTasks[tk] !== undefined ? openTasks[tk] : !!q;
+      const nameMatch = t.name.toLowerCase().includes(q);
+      let subsHtml = '';
+      let taskVisible = nameMatch || !q;
+
+      t.subs.forEach((s, si) => {
+        const subMatch = s.t.toLowerCase().includes(q) || (s.n && s.n.toLowerCase().includes(q));
+        if (!subMatch && !nameMatch && q) return;
+        taskVisible = true; catVisible = true;
+        const isDone = !!checked[key(d.cat, ti, si)];
+        subsHtml += `<div class="subtask-row">
+          <div class="chk${isDone?' checked':''}" onclick="onCheck('${d.cat}',${ti},${si})"></div>
+          <div><div class="subtask-label${isDone?' done-label':''}">${s.t}</div>${s.n?`<div class="subtask-note">${s.n}</div>`:''}</div>
+        </div>`;
+      });
+
+      if (!taskVisible) return;
+      const doneSubs = t.subs.filter((_,si) => checked[key(d.cat,ti,si)]).length;
+      tasksHtml += `<div class="parent-task">
+        <div class="parent-row" onclick="toggleTask('${d.cat}',${ti})">
+          <div class="pchk${ps==='all'?' checked':ps==='partial'?' partial':''}" onclick="event.stopPropagation();onParentCheck('${d.cat}',${ti})"></div>
+          <div style="flex:1">
+            <div class="parent-label${ps==='all'?' done-label':''}">${t.name}</div>
+            <div class="parent-sub-count">${doneSubs}/${t.subs.length} steps</div>
+          </div>
+          <div class="expand-icon${isTaskOpen?' open':''}">&#9658;</div>
+        </div>
+        <div class="subtasks${isTaskOpen?' open':''}">${subsHtml||'<div class="empty">no matching steps</div>'}</div>
+      </div>`;
+    });
+
+    if (!catVisible) return;
+    html += `<div class="category">
+      <div class="cat-header" onclick="toggleCat('${d.cat}')">
+        <div class="cat-dot" style="background:${color}"></div>
+        <div class="cat-title">${d.cat}</div>
+        <div class="cat-meta">
+          <span class="cat-count">${cd}/${ct}</span>
+          <div class="cat-bar"><div class="cat-bar-fill" style="width:${cpct}%;background:${color}"></div></div>
+          <span class="cat-pct">${cpct}%</span>
+        </div>
+        <div class="chevron${isOpen?' open':''}">&#9658;</div>
+      </div>
+      <div class="tasks${isOpen?' open':''}">${tasksHtml}</div>
+    </div>`;
+  });
+  document.getElementById('categories').innerHTML = html || '<div class="empty">no tasks match your search.</div>';
+}
+
+// start in readonly mode, load from bin
+document.getElementById('categories').classList.add('readonly');
+loadFromBin().then(() => renderAll());
+</script>
+
+</body>
+</html>
